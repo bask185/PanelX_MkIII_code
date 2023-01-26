@@ -4,13 +4,6 @@
 
 uint8_t indexTemp = 0 ;
 
-const uint8_t array[][2] =
-{
-	//{1,3},
-	{1,6},
-	{1,11},
-	//{2,3},
-}	;
 
 
 
@@ -22,12 +15,12 @@ void setup()
 
 void loop()
 {
-	REPEAT_MS( 500 )
+	REPEAT_MS( 2000 )
 	{
-		setNxButton( array[indexTemp  ][0],     FIRST_BUTTON ) ;
-		setNxButton( array[indexTemp++][1],  SECOND_BUTTON ) ;
+		setNxButton( 1,     FIRST_BUTTON ) ;
+		setNxButton( 4,  SECOND_BUTTON ) ;
 
-		if( indexTemp ==  3 ) while(1);
+		if( ++indexTemp ==  2 ) while(1);
 	}
 	END_REPEAT
 

@@ -12,24 +12,46 @@ V todo get the street from EEPROM
 
 const uint8_t hardcodedRoutes[][2]
 {
-    {1,2},
+    
     {1,3},
-    {1,4},
-    {1,5},
+    {1,2},
 
-    {4,7},
-    {4,8},
-    {4,6},
+    {3,4},
 
-    {7,9},
-    {7,10},
-    {7,11},
-    {7,12},
+    {2,5},
+    {2,6},
+    {2,7},
+    {2,8},
+    {2,9},
+    {2,10},
 
-    {8,9},
-    {8,10},
-    {8,11},
-    {8,12},
+    {10,11},
+    {10,12},
+    {10,13},
+    {10,14},
+    {10,15},
+    {10,16},
+
+    {5,17},
+    {5,18},
+    {5,19},
+    {5,20},
+    {5,21},
+    {5,22},
+
+    {21,23},
+    {21,24},
+    {21,25},
+    {21,26},
+    {21,27},
+    {21,28},
+
+    {24,29},
+    {24,30},
+    {24,31},
+    {24,32},
+    {24,33},
+    {24,34},
 } ;
 
 #define entryState  if( sm.entryState() )
@@ -49,7 +71,7 @@ enum states
     setPoints,    
 } ;
 
-const int   nBlocks = 15 ;
+const int   nBlocks = 33 ;
 const int   nLevels =  6 ; // maybe 4 suffices?
 
 uint8_t     state = getBeginButton ;
@@ -87,7 +109,7 @@ struct
 } Route;
 
 uint8_t nButtons ;
-uint8_t nStreets ;
+uint8_t nStreets = 24 ;
 
 void dumpTable()
 {
@@ -114,7 +136,7 @@ void NxBegin( uint8_t _relaisPresent, uint8_t _freeRouteOnTrain, uint8_t _direct
     freeRouteOnTrain = _freeRouteOnTrain ;
     directionMatters = _directionMatters ;
 
-    nStreets = eeprom.read( sizeAddress) ;
+    //nStreets = eeprom.read( sizeAddress) ;
     if( nStreets = 255 && invalidData ) invalidData() ; // if the size byte is larger than the the max amount of streets, warning should be displayed!
 }
 
@@ -209,8 +231,8 @@ StateFunction( findRoute )
             uint8_t btn1 = hardcodedRoutes[i][0] ;
             uint8_t btn2 = hardcodedRoutes[i][1] ;
 
-           Serial.print(F("referencing "));Serial.print(startButton) ; Serial.write('/');Serial.print(endButton) ;
-           Serial.print(F(" with array "));Serial.print(btn1) ; Serial.write('/');Serial.print(btn2) ;
+           //Serial.print(F("referencing "));Serial.print(startButton) ; Serial.write('/');Serial.print(endButton) ;
+           //Serial.print(F(" with array "));Serial.print(btn1) ; Serial.write('/');Serial.print(btn2) ;
 
             if( btn1 == startButton
             &&  btn2 == endButton ) // !! Route found, we are go!
@@ -229,7 +251,7 @@ StateFunction( findRoute )
                 splits[ index[level]++ ][level] = btn2 ; // if only the begin button matches, we want to store it.
                 nextTrackFound = true ;
             }
-            else Serial.println() ;
+            //else Serial.println() ;
         }
         // NO route found, a or several blocks must be along the route
         // use one of the stored end positions as new begin position, and retry the same search 
@@ -239,19 +261,23 @@ StateFunction( findRoute )
         {
             Serial.println(F("END TRACK!")) ; 
 
-            if( index[level-1] == 0 )
+            if( index[level] == 0  )
             {
-                Serial.println(F("explored last option, NO ROUTE FOUND"))  ;
-                return 1 ;
+                if( -- level == 255 )
+                {
+                    Serial.println(F("explored last option, NO ROUTE FOUND"))  ;
+                    return 1 ;
+                }
             }
             else
-            {           
-                level -- ;
+            {   
+                Serial.println(F("decrementing index ")) ;
+                //level -- ;
                 index[level] -- ;
-                Serial.print(F("level: ")) ; Serial.println( level);
-                Serial.print(F("index: ")) ; Serial.println( index[level]);
+                //Serial.print(F("level: ")) ; Serial.println( level);
+                //Serial.print(F("index: ")) ; Serial.println( index[level]);
                 startButton = splits[ index[level]][level] ; // pick new block to start searching from      
-                level ++ ;    
+                //level ++ ;    
             }  
         }
 
@@ -259,14 +285,14 @@ StateFunction( findRoute )
         {
             index[level] -- ;
             Serial.println(F("New split ahead, incrementing level")) ;
-            Serial.print(F("level: ")) ; Serial.println( level);
-            Serial.print(F("index: ")) ; Serial.println( index[level]);
+            //Serial.print(F("level: ")) ; Serial.println( level);
+            //Serial.print(F("index: ")) ; Serial.println( index[level]);
             startButton = splits[ index[level]][level] ; // pick new block to start searching from
             Serial.print(F("next start button: ")) ; Serial.println(startButton);
             level ++ ;
         }
 
-        dumpTable() ;
+        //dumpTable() ;
         Serial.println();
     }
 
