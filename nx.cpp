@@ -12,7 +12,6 @@ V todo get the street from EEPROM
 
 const uint8_t hardcodedRoutes[][2]
 {
-    
     {1,3},
     {1,2},
 
@@ -87,7 +86,7 @@ uint8_t     relay ;
 uint16_t    splits[nBlocks][nLevels] ;  // used to store the splits  10 possible tracks, 6 levels deep, should suffice
 uint16_t    index[nLevels] ;            // keeps of track of the tried routes during route finding
 uint8_t     level ;
-uint8_t     sets[6][2] ;
+uint16_t    sets[6][2] ;
 
 
 I2cEeprom   eeprom( 0x50 ) ;
@@ -116,7 +115,7 @@ void dumpTable()
     for( int j = 0 ; j < nLevels ; j ++ )
     {
         char buffer[60] ;
-        sprintf(buffer, "%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d",  
+        sprintf(buffer, "%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d |%4d | %4d",  
             splits[0][j], 
             splits[1][j], 
             splits[2][j], 
@@ -124,10 +123,27 @@ void dumpTable()
             splits[4][j], 
             splits[5][j], 
             splits[6][j], 
-            splits[7][j] );
-        Serial.println(buffer) ;
+            splits[7][j],
+            index[j],
+            splits[index[j]][j] ) ;
+        Serial.print(buffer) ;
+        if( level == j ) Serial.println(F(" <-- current level"));
+        else Serial.println() ; 
     }
-    
+}
+
+void printResults()
+{
+    for( int j = 0 ; j <= level ; j ++ )
+    {
+        sets[j+1][0] = splits[index[j]][j] ;
+        sets[j+1][1] = splits[index[j+1]][j+1] ;
+        
+        if( j == 0 )      {  sets[0][0] = beginButton ; sets[0][1] =  splits[index[0]][0] ; }
+        if( j == level-1) {  sets[j+1][1] = endButton ; }
+
+        Serial.print(j);Serial.print(": ") ;Serial.print(sets[j][0]);Serial.print(",") ;Serial.println(sets[j][1]) ;
+    }
 }
 
 void NxBegin( uint8_t _relaisPresent, uint8_t _freeRouteOnTrain, uint8_t _directionMatters )
@@ -137,7 +153,7 @@ void NxBegin( uint8_t _relaisPresent, uint8_t _freeRouteOnTrain, uint8_t _direct
     directionMatters = _directionMatters ;
 
     //nStreets = eeprom.read( sizeAddress) ;
-    if( nStreets = 255 && invalidData ) invalidData() ; // if the size byte is larger than the the max amount of streets, warning should be displayed!
+    if( nStreets = 0xffff && invalidData ) invalidData() ; // if the size byte is larger than the the max amount of streets, warning should be displayed!
 }
 
 void storeRoutes( uint8_t *data, uint16_t size )
@@ -213,8 +229,8 @@ StateFunction( findRoute )
         for( int i = 0 ; i < nBlocks ; i ++ )
         for( int j = 0 ; j < nLevels ; j ++ )
         {
-            splits[i][j] = 255 ; // reset arrays
-            index[j] = 255 ;
+            splits[i][j] = 0xffff ; // reset arrays
+            index[j] = 0xffff ;
             index[ j ] = 0 ;
         }
     }
@@ -233,25 +249,25 @@ StateFunction( findRoute )
 
            //Serial.print(F("referencing "));Serial.print(startButton) ; Serial.write('/');Serial.print(endButton) ;
            //Serial.print(F(" with array "));Serial.print(btn1) ; Serial.write('/');Serial.print(btn2) ;
+            if( btn1 == startButton )
+            {
+                // Serial.print(F("  storing ")) ; 
+                // Serial.print( btn2 );Serial.print(F(" on index ")); 
+                // Serial.print(index[level]);
+                // Serial.print(F(" on level ")); Serial.println(level);
+                splits[ index[level]++ ][level] = btn2 ; // if only the begin button matches, we want to store it.
+                nextTrackFound = true ;
+            }
 
             if( btn1 == startButton
             &&  btn2 == endButton ) // !! Route found, we are go!
             {       
                 Serial.println(F("\r\nROUTE FOUND!")) ;
+                dumpTable() ;
+                printResults() ;                
                 //beginButton = endButton = NA ;
                 return 1 ;
             }
-
-            else if( btn1 == startButton )
-            {
-                Serial.print(F("  storing ")) ; 
-                Serial.print( btn2 );Serial.print(F(" on index ")); 
-                Serial.print(index[level]);
-                Serial.print(F(" on level ")); Serial.println(level);
-                splits[ index[level]++ ][level] = btn2 ; // if only the begin button matches, we want to store it.
-                nextTrackFound = true ;
-            }
-            //else Serial.println() ;
         }
         // NO route found, a or several blocks must be along the route
         // use one of the stored end positions as new begin position, and retry the same search 
@@ -259,40 +275,37 @@ StateFunction( findRoute )
 
         if( nextTrackFound == false ) // if no new possible track was found to go from...
         {
-            Serial.println(F("END TRACK!")) ; 
+            Serial.println(F("DEAD END")) ; 
+            level -- ;
+            Serial.print(F("decrementing LEVEL to ")) ;Serial.println(level); // TO BE VERIFIED
+            index[level] -- ;
+            Serial.print(F("decrementing INDEX to ")) ;Serial.println(index[level]); // TO BE VERIFIED
+           
 
-            if( index[level] == 0  )
+            if( index[level] == -1  )
             {
-                if( -- level == 255 )
-                {
-                    Serial.println(F("explored last option, NO ROUTE FOUND"))  ;
-                    return 1 ;
-                }
+                index[level] = 0 ; // maybe is -1 not bad?
+                //index[level-1] -- ;
+                Serial.println("depleted last branch, going back one level") ;
+                // check if level = -1
+                //Serial.println(F("explored last option, NO ROUTE FOUND"))  ;
             }
             else
             {   
-                Serial.println(F("decrementing index ")) ;
-                //level -- ;
-                index[level] -- ;
-                //Serial.print(F("level: ")) ; Serial.println( level);
-                //Serial.print(F("index: ")) ; Serial.println( index[level]);
                 startButton = splits[ index[level]][level] ; // pick new block to start searching from      
-                //level ++ ;    
+                level ++ ;  
             }  
         }
 
-        else // new tracks lie ahead
+        else // new tracks lie ahead THIS SHOULD BE OK
         {
             index[level] -- ;
             Serial.println(F("New split ahead, incrementing level")) ;
-            //Serial.print(F("level: ")) ; Serial.println( level);
-            //Serial.print(F("index: ")) ; Serial.println( index[level]);
             startButton = splits[ index[level]][level] ; // pick new block to start searching from
-            Serial.print(F("next start button: ")) ; Serial.println(startButton);
             level ++ ;
         }
 
-        //dumpTable() ;
+        dumpTable() ;
         Serial.println();
     }
 
