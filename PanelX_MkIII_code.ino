@@ -18,7 +18,7 @@ void loop()
 	REPEAT_MS( 2000 )
 	{
 		setNxButton( 1,     FIRST_BUTTON ) ;
-		setNxButton( 12,  SECOND_BUTTON ) ;
+		setNxButton( 31,  SECOND_BUTTON ) ;
 
 		if( ++indexTemp ==  2 ) while(1);
 	}

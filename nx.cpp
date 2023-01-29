@@ -7,7 +7,67 @@
 V todo get the street from EEPROM
 * make a new branch and make project compilable
 * remake the .ino file to work with the new functions.
+
+EEPROM plans:
+when 2 buttons 're pressed. A search must be done from left to right
+if that fails, we try again from right to left.
+
+Therefor the routes need to be separated in 2 columns for right and left movements
+in order to save space the EEPROM should be compacted for as much as possible. 
+
+It would be a good idea to store the amount of possible routes. 
+Behind the routes the point streets should be stored for all combinations
 */
+/*
+size LR LR LR LR LR
+size RL RL RL RL RL RL RL
+nPointStreets
+size N X P P P // P is 2 bytes
+size N X P P
+size N X P P P P P
+size N X P P
+*/
+
+const uint16_t  leftRoutesAddress   = 0 ;
+const uint8_t   NA                  = 0xFF ;
+const uint16_t  nPointsPerStreet    = 20 ;
+uint16_t        rightRoutesAddress ; // calculate upon booting
+uint16_t        nPointStreets ;      // fetch from EEPROM upon booting
+
+
+/*
+size LR LR LR LR LR        right ->
+size RL RL RL RL RL RL RL  <- left
+nPointStreets
+size N X P P P
+size N X P P
+size N X P P P P P
+size N X P P
+*/
+
+struct
+{
+    uint8_t     size ;          // amount of points on this route
+    uint8_t     firstButton ;   // buttons are interchangable for setting points  
+    uint8_t     secondButton ;
+    uint16_t    point[ nPointsPerStreet ] ;
+} Route;
+
+void loadEEPROM()
+{
+    uint16_t eeAddress = leftRoutesAddress ;
+    nRoutesLeft = eeprom.read( eeAddress ) ; // get amount of routes in left direction
+
+    eeAddress = nRoutesLeft * 2 ;
+    nRoutesRight = eeprom.read( eeAddress ) ; // get amount of routes in right direction
+
+    eeAddress = nRoutesRight * 2 ;
+    nPointStreets = eeprom.read( eeAddress ) ; // get amount of pointStreets
+
+    
+
+}
+
 
 
 const uint8_t hardcodedRoutes[][2]
@@ -66,7 +126,6 @@ enum states
     getBeginButton,
     getEndButton,
     findRoute,
-    bufferNode,
     setPoints,    
 } ;
 
@@ -83,29 +142,13 @@ uint8_t     directionMatters ;
 int8_t      speed ;
 uint16_t    point ;
 uint8_t     relay ;
-uint16_t    splits[nBlocks][nLevels] ;  // used to store the splits  10 possible tracks, 6 levels deep, should suffice
+uint16_t    splits[nPointsPerStreet][nLevels] ;  // used to store the splits
 uint16_t    index[nLevels] ;            // keeps of track of the tried routes during route finding
 uint8_t     level ;
-uint16_t    sets[6][2] ;
-
+uint16_t    sets[nLevels][2] ;
 
 I2cEeprom   eeprom( 0x50 ) ;
 
-const int   nPointsPerStreet = 13 ;
-const int   sizeAddress  = 0x6FFE ;
-const int   startAddress = 0x6FFF ; // should be the last free 4096 bytes memory in a 24LC256 EEPROM
-
-const int   NA   = 0xFF ;
-const int   last = 10000 ;
-const int   maxCombinations = 128 ;
-
-struct
-{
-    uint8_t     beginButton ;
-    uint8_t     endButton ;
-    uint16_t    point[17] ;
-    uint16_t    relay[5] ;
-} Route;
 
 uint8_t nButtons ;
 uint8_t nStreets = 24 ;
@@ -310,24 +353,6 @@ StateFunction( findRoute )
     }
 
     return 0 ;
-}
-
-StateFunction( bufferNode )
-{
-    entryState
-    {
-        
-    }
-    onState
-    {
-        
-        sm.exit() ;
-    }
-    exitState
-    {
-        
-        return 1 ;
-    }
 }
 
 StateFunction( setPoints )
